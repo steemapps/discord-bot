@@ -11,7 +11,7 @@ import Config from './config';
 // Add n limit (e.g. only show top 10 [could do this in the loop but should be api available?])
 // Add categories once available through API
 // Add app type once available through API
-// 
+// Remove rank from non-rank sorts?
 
 const options: rp.RequestPromiseOptions = {
     headers: {
