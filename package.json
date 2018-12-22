@@ -1,0 +1,39 @@
+{
+  "name": "steemapps-discord-bot",
+  "version": "1.0.0",
+  "description": "Discord Bot in Typescript for Steem-Apps",
+  "main": "./dist/index.js",
+  "scripts": {
+    "test": "test",
+    "prestart": "tsc",
+    "start": "node dist/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/steemapps/discord-bot.git"
+  },
+  "keywords": [
+    "steem",
+    "steemapps",
+    "discord"
+  ],
+  "author": "Peter Taggart",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/steemapps/discord-bot/issues"
+  },
+  "homepage": "https://github.com/steemapps/discord-bot#readme",
+  "devDependencies": {
+    "tslint": "^5.12.0",
+    "typescript": "^3.2.2"
+  },
+  "dependencies": {
+    "@types/node": "^10.12.18",
+    "@types/request": "^2.48.1",
+    "@types/request-promise-native": "^1.0.15",
+    "discord.js": "^11.4.2",
+    "node": "^11.4.0",
+    "request": "^2.88.0",
+    "request-promise-native": "^1.0.5"
+  }
+}
