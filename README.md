@@ -2,7 +2,8 @@ Discord Bot for steem-apps
 
 Dev setup:
 
-Requires you to set up a config.ts in the src folder with your Discord Bot User's token.<br>
+Requires you to set up a config.js in the root folder with your Discord Bot User's token as a 'config' object with key 'token'.<br>
+
 `npm i`<br>
 `npm start`
 

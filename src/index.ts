@@ -1,11 +1,11 @@
 import * as Discord from 'discord.js';
 import rp = require('request-promise-native');
-import { argTypes, IApiData, queries } from './defs';
+import { argTypes, helpMessage, IApiData, queries } from './defs';
 const client = new Discord.Client();
 
 const uri = 'https://steemapps.com/api/apps';
 
-import Config from '../config';
+import * as config from '../config';
 
 // ToDo:
 // Add n limit (e.g. only show top 10 [could do this in the loop but should be api available?])
@@ -80,7 +80,11 @@ function parseArgs(args: string[]): string[][] {
         // if arg is not parsed in a parameter type, push the default for that type into query
         if (type > 1 && !parsed) {
             // console.log(type);
-            qs.push(queries[argTypes[type].default]);
+            if (type === 4 && qs[qs.length - 2] === queries.rank) {
+                qs.push(queries[argTypes[type].asc]);
+            } else {
+                qs.push(queries[argTypes[type].default]);
+            }
         }
 
         type++;
@@ -143,6 +147,10 @@ client.on('message', async (msg: Discord.Message) => {
     const args = msg.content.slice(1).trim().split(/ +/g);
     if (args && Array.isArray(args)) {
         const command = args.shift();
+
+        if (command === "help") {
+            msg.channel.send(helpMessage);
+        }
         
         // check correct command
         if (command !== "top") {
@@ -169,4 +177,4 @@ client.on('message', async (msg: Discord.Message) => {
     }
 });
 
-client.login(Config.token);
+client.login(config.token);
