@@ -1,6 +1,6 @@
 import * as Discord from 'discord.js';
 import rp = require('request-promise-native');
-import { argTypes, IApiData, queries } from './defs';
+import { argTypes, helpMessage, IApiData, queries } from './defs';
 const client = new Discord.Client();
 
 const uri = 'https://steemapps.com/api/apps';
@@ -147,6 +147,10 @@ client.on('message', async (msg: Discord.Message) => {
     const args = msg.content.slice(1).trim().split(/ +/g);
     if (args && Array.isArray(args)) {
         const command = args.shift();
+
+        if (command === "help") {
+            msg.channel.send(helpMessage);
+        }
         
         // check correct command
         if (command !== "top") {
