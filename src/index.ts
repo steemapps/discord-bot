@@ -5,7 +5,7 @@ const client = new Discord.Client();
 
 const uri = 'https://steemapps.com/api/apps';
 
-import Config from '../config';
+import * as config from '../config';
 
 // ToDo:
 // Add n limit (e.g. only show top 10 [could do this in the loop but should be api available?])
@@ -177,4 +177,4 @@ client.on('message', async (msg: Discord.Message) => {
     }
 });
 
-client.login(Config.token);
+client.login(config.token);

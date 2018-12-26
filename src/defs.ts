@@ -169,8 +169,8 @@ export const queries: IQueryObject = {
     
 };
 
-export const helpMessage: string = `\nThank you for using the Steem Apps Bot! Command prefixes are 
-! and $. Commands are help (which shows this message), and top, which shows the top Steem Apps Ranked.
- The parameters you can pass to top are:\n Time: last_day, last_week, or last_month.\n Sort: desc or
-  asc.\nRank by: dau, tx, rewards_steem, rewards_sbd, volume_steem, volume_sbd.\nOnly one of each
-   parameter type can be passed. Thank you again for using Steem Apps!`;
+export const helpMessage: string = `\nThank you for using the Steem Apps Bot! Command prefixes are \
+! and $. Commands are help (which shows this message), and top, which shows the top Steem Apps Ranked. \
+The parameters you can pass to top are:\nTime: last_day, last_week, or last_month.\nSort: desc or \
+asc.\nRank by: dau, tx, rewards_steem, rewards_sbd, volume_steem, volume_sbd.\nOnly one of each \
+parameter type can be passed. Thank you again for using Steem Apps!`;
