@@ -80,7 +80,11 @@ function parseArgs(args: string[]): string[][] {
         // if arg is not parsed in a parameter type, push the default for that type into query
         if (type > 1 && !parsed) {
             // console.log(type);
-            qs.push(queries[argTypes[type].default]);
+            if (type === 4 && qs[qs.length - 2] === queries.rank) {
+                qs.push(queries[argTypes[type].asc]);
+            } else {
+                qs.push(queries[argTypes[type].default]);
+            }
         }
 
         type++;
