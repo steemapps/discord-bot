@@ -5,7 +5,7 @@ const client = new Discord.Client();
 
 const uri = 'https://steemapps.com/api/apps';
 
-import Config from './config';
+import Config from '../config';
 
 // ToDo:
 // Add n limit (e.g. only show top 10 [could do this in the loop but should be api available?])
@@ -54,7 +54,7 @@ function parseArgs(args: string[]): string[][] {
     if (args.length === 0) {
         qs.push(queries[argTypes[2].default]);
         qs.push(queries[argTypes[3].default]);
-        qs.push(queries[argTypes[4].default]);
+        qs.push(queries[argTypes[4].asc]);
         return qs;
     }
 
