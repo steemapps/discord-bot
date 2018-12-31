@@ -1,6 +1,6 @@
 import * as Discord from 'discord.js';
 import rp = require('request-promise-native');
-import { argTypes, helpMessage, IApiData, queries } from './defs';
+import { argTypes, helpMessage, IApiData, IDiscordEmbed, IDiscordStartMessage, queries } from './defs';
 const client = new Discord.Client();
 
 const uri = 'https://steemapps.com/api/apps';
@@ -15,7 +15,7 @@ import * as config from '../config';
 
 const options: rp.RequestPromiseOptions = {
     headers: {
-        'User-Agent': 'Request-Promise',
+        'Content-Type': 'application/json',
     },
     json: true, // Automatically parses the JSON string in the response
 };
@@ -37,7 +37,7 @@ function getPath(qs: string[][]): string {
 
 // returns top of message with the sort time and order
 function getSort(qs: string[][]): string {
-    let sortmsg = "Top Steem Apps ";
+    let sortmsg = "Top Steem ";
 
     for (const q of qs) {
         sortmsg += q[1] + " ";
@@ -59,7 +59,7 @@ function parseArgs(args: string[]): string[][] {
     }
 
     // decrease type when API endpoints become available for type and category
-    let type = 2;
+    let type = 0;
     while (type < 5) {
         let parsed = false;
         
@@ -127,6 +127,75 @@ function formatMessage(apps: IApiData[], qs: string[][]): string {
     return msg;
 }
 
+/**
+ * Formats a discord embed with app description, name, link, pic, etc.
+ * @param app 
+ */
+function formatEmbed(app: IApiData): IDiscordEmbed {
+    const msg: IDiscordEmbed = {
+        color: 12607945,
+        description: app.short_description,  
+        thumbnail: {
+            url: '',
+        }, 
+        title: app.display_name,
+        url: app.link,
+    };
+
+    // if image data is in steemapps db, use it
+    if (app.image && app.image.length > 0) {
+        msg.thumbnail.url += app.image;
+    } else {
+        // else find the account with a logo on it
+        const acclogo = app.accounts.filter((x) => (x.logo && x.name));
+        if (acclogo[0] && Array.isArray(acclogo)) {
+            // get the image link from account name steemjs? seems like a lot for pictures
+            console.log(acclogo);
+            console.log("https://steemitimages.com/u/" + acclogo[0].name + "/avatar");
+            msg.thumbnail.url += "https://steemitimages.com/u/" + acclogo[0].name + "/avatar";
+        }
+    }
+
+    return msg;
+}
+
+/**
+ * formatMessages takes an api response and the queries used to format embedded discord messages
+ * @param apps array of app data from steemapps api
+ * @param qs queries sent by user or default if not
+ */
+function formatMessages(apps: IApiData[], qs: string[][]): IDiscordStartMessage[] {
+    const messages: IDiscordStartMessage[] = [];
+
+    for (const app of apps) {
+        const msg: IDiscordStartMessage = {
+            embed: formatEmbed(app),
+        };
+        
+        messages.push(msg);
+    }
+
+    return messages;
+}
+
+function sendResponse(apps: IApiData[], qs: string[][], dismsg: Discord.Message) {
+    // format all apps into the embedded messages
+    const msgs = formatMessages(apps, qs);
+    const channel = dismsg.channel;
+
+    // send the content of message, with the sort options being used
+    channel.send(getSort(qs));
+
+    // loop through and send messages
+    for (const msg of msgs) {
+        channel.send(msg)
+            .catch((error) => {
+                console.log(error);
+                console.log(msg);
+            });
+    }
+}
+
 // print out in console when logged in
 client.on('ready', () => {
     console.log("Logged in to Discord.");
@@ -163,13 +232,13 @@ client.on('message', async (msg: Discord.Message) => {
 
         // gets the api parameters from array
         const path = getPath(q);
-
+        
         // call the request with uri and path, then format message to send back
         rp(uri + path, options)
         .then((apps) => {
-            let message = getSort(q);
-            message += formatMessage(apps.apps, q);
-            msg.channel.send(message);
+            console.log(apps.apps.length);
+            // pass the array of IApiData, queries, and the msg (for the channel) to main function
+            sendResponse(apps.apps, q, msg);
         })
         .catch((error) => {
             console.log(error);

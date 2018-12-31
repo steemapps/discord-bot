@@ -41,6 +41,14 @@ export interface IApiData {
             last_day: number;
         };
     };
+    image: string;
+    short_description: string;
+    link: string;
+    accounts: [{
+        logo: boolean;
+        id: number;
+        name: string;
+    }];
 }
 
 // argument string object
@@ -57,10 +65,12 @@ export const argTypes: IArgTypes = {
     0: {
         app: "app",
         dapp: "dapp",
-        interface: "interface",
+        interfaces: "interfaces",
+        project: "project",
     },
     1: {
         content_discovery: "content_discovery",
+        development: 'development',
         education: "education",
         entertainment: "entertainment",
         exchanges: "exchanges",
@@ -105,9 +115,21 @@ export interface IQueryObject {
 
 // holds string arrays with all strings needed for each parameter. indexed into using the parameter
 export const queries: IQueryObject = {
+    app: [
+        "type=app",
+        "Applications",
+    ],
     asc: [
         "order=asc",
         "(Ascending)",
+    ],
+    content_discovery: [
+        "category=content_discovery",
+        "Content Discovery",
+    ],
+    dapp: [
+        "type=dapp",
+        "dApps",
     ],
     dau: [
         "sort=dau",
@@ -117,6 +139,46 @@ export const queries: IQueryObject = {
     desc: [
         "order=desc",
         "(Descending)",
+    ],
+    development: [
+        "category=development",
+        "Development",
+    ],
+    education: [
+        "category=education",
+        "Education",
+    ],
+    entertainment: [
+        "category=entertainment",
+        "Entertainment",
+    ],
+    exchanges: [
+        "category=exchanges",
+        "Exchanges",
+    ],
+    finance: [
+        "category=finance",
+        "Finance",
+    ],
+    gambling: [
+        "category=gambling",
+        "Gambling",
+    ],
+    games: [
+        "category=games",
+        "Games",
+    ],
+    health: [
+        "category=health",
+        "Health",
+    ],
+    interface: [
+        "category=interface",
+        "Interface",
+    ],
+    interfaces: [
+        "type=interface",
+        "Interfaces",
     ],
     last_day: [
         "time=last_day",
@@ -132,6 +194,18 @@ export const queries: IQueryObject = {
         "time=last_week",
         "This Week",
         "last_week",
+    ],
+    media: [
+        "category=media",
+        "Media",
+    ],
+    project: [
+        "type=project",
+        "Projects",
+    ],
+    promotion: [
+        "category=promotion",
+        "Promotion",
     ],
     rank: [
         "sort=rank",
@@ -149,10 +223,22 @@ export const queries: IQueryObject = {
         "rewards",
         "steem",
     ],
+    security: [
+        "category=security",
+        "Security",
+    ],
+    social: [
+        "category=social",
+        "Social",
+    ],
     tx: [
         "sort=tx",
         "By Transactions",
         "tx",
+    ],
+    utility: [
+        "category=utility",
+        "Utility",
     ],
     volume_sbd: [
         "sort=volume_sbd",
@@ -166,8 +252,38 @@ export const queries: IQueryObject = {
         "volume",
         "steem",
     ],
-    
+    wallet: [
+        "category=wallet",
+        "Wallet",
+    ],
 };
+
+/**
+ * embed message interface for discord
+ */
+export interface IDiscordEmbed {
+    title: string;
+    description: string;
+    url: string;
+    color: number;
+    timestamp?: string;
+    thumbnail?: {
+        url: string;
+    };
+    fields?: Array<{
+        name: string;
+        value: string;
+        inline: boolean;
+    }>;
+}
+
+/**
+ * message interface for discord, with embed and optional content field
+ */
+export interface IDiscordStartMessage {
+    content?: string;
+    embed: IDiscordEmbed;
+}
 
 export const helpMessage: string = `\nThank you for using the Steem Apps Bot! Command prefixes are \
 ! and $. Commands are help (which shows this message), and top, which shows the top Steem Apps Ranked. \
