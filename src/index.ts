@@ -1,9 +1,18 @@
 import * as Discord from 'discord.js';
 import rp = require('request-promise-native');
-import { argTypes, helpMessage, IApiData, IDiscordEmbed, IDiscordStartMessage, queries } from './defs';
+import { 
+    argTypes, 
+    helpMessage, 
+    IApiData, 
+    IDiscordEmbed,
+    IDiscordWebhookManager,
+    IEmbeds,
+    queries } from './defs';
 const client = new Discord.Client();
 
 const uri = 'https://steemapps.com/api/apps';
+const avatarURL = "https://steemitimages.com/u/steemitdev/avatar";
+let webhookManager: IDiscordWebhookManager;
 
 import * as config from '../config';
 
@@ -133,18 +142,18 @@ function formatMessage(apps: IApiData[], qs: string[][]): string {
  */
 function formatEmbed(app: IApiData): IDiscordEmbed {
     const msg: IDiscordEmbed = {
+        author: {
+            icon_url: '',
+            name: app.display_name,
+            url: app.link,
+        },
         color: 12607945,
         description: app.short_description,  
-        thumbnail: {
-            url: '',
-        }, 
-        title: app.display_name,
-        url: app.link,
     };
 
     // if image data is in steemapps db, use it
     if (app.image && app.image.length > 0) {
-        msg.thumbnail.url += app.image;
+        msg.author.icon_url += app.image;
     } else {
         // else find the account with a logo on it
         const acclogo = app.accounts.filter((x) => (x.logo && x.name));
@@ -152,7 +161,7 @@ function formatEmbed(app: IApiData): IDiscordEmbed {
             // get the image link from account name steemjs? seems like a lot for pictures
             console.log(acclogo);
             console.log("https://steemitimages.com/u/" + acclogo[0].name + "/avatar");
-            msg.thumbnail.url += "https://steemitimages.com/u/" + acclogo[0].name + "/avatar";
+            msg.author.icon_url += "https://steemitimages.com/u/" + acclogo[0].name + "/avatar";
         }
     }
 
@@ -164,36 +173,45 @@ function formatEmbed(app: IApiData): IDiscordEmbed {
  * @param apps array of app data from steemapps api
  * @param qs queries sent by user or default if not
  */
-function formatMessages(apps: IApiData[], qs: string[][]): IDiscordStartMessage[] {
-    const messages: IDiscordStartMessage[] = [];
+function formatMessages(apps: IApiData[], qs: string[][]): IEmbeds {
+    const embeds: IDiscordEmbed[] = [];
 
     for (const app of apps) {
-        const msg: IDiscordStartMessage = {
-            embed: formatEmbed(app),
-        };
-        
-        messages.push(msg);
+        embeds.push(formatEmbed(app));
     }
 
-    return messages;
+    const embedArr: IEmbeds = {
+        embeds,
+    };
+
+    return embedArr;
 }
 
-function sendResponse(apps: IApiData[], qs: string[][], dismsg: Discord.Message) {
+async function sendResponse(apps: IApiData[], qs: string[][], channel: Discord.TextChannel) {
     // format all apps into the embedded messages
     const msgs = formatMessages(apps, qs);
-    const channel = dismsg.channel;
 
     // send the content of message, with the sort options being used
-    channel.send(getSort(qs));
+    // channel.send(getSort(qs));
 
     // loop through and send messages
-    for (const msg of msgs) {
+    /* for (const msg of msgs) {
         channel.send(msg)
             .catch((error) => {
                 console.log(error);
                 console.log(msg);
             });
+    } */
+
+    if (webhookManager.hasOwnProperty(channel.name)) {
+        webhookManager[channel.name].send(getSort(qs), msgs);
+    } else {
+        const wbname = channel.name + "SteemAppsWebhook";
+        webhookManager[channel.name] = await channel.createWebhook(wbname, avatarURL)
+          .then((webhook) => webhook.edit(wbname, avatarURL));
+        webhookManager[channel.name].send(getSort(qs), msgs);
     }
+    
 }
 
 // print out in console when logged in
@@ -214,8 +232,28 @@ client.on('message', async (msg: Discord.Message) => {
 
     // split message by spaces, removing the command prefix
     const args = msg.content.slice(1).trim().split(/ +/g);
-    if (args && Array.isArray(args)) {
+    if (args && Array.isArray(args) && msg.channel instanceof Discord.TextChannel) {
+        const channel = msg.channel;
         const command = args.shift();
+
+        if (command === "createHook") {
+            const wbname = msg.channel.name + "SteemAppsWebhook";
+            msg.channel.createWebhook(wbname, "https://steemitimages.com/u/steemitdev/avatar")
+              .then((webhook) => webhook.edit(wbname, "https://steemitimages.com/u/steemitdev/avatar"))
+                .then((wb) => wb.send("Testing dis shit", {
+                    embeds: [{
+                        author: {
+                            name: "Embed 1",
+                        },
+                    },
+                    {
+                        author: {
+                            name: "Embed 2",
+                        },
+                    },
+                ],
+                }));
+        }
 
         if (command === "help") {
             msg.channel.send(helpMessage);
@@ -238,7 +276,7 @@ client.on('message', async (msg: Discord.Message) => {
         .then((apps) => {
             console.log(apps.apps.length);
             // pass the array of IApiData, queries, and the msg (for the channel) to main function
-            sendResponse(apps.apps, q, msg);
+            sendResponse(apps.apps, q, channel);
         })
         .catch((error) => {
             console.log(error);

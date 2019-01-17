@@ -1,3 +1,5 @@
+import * as Discord from 'discord.js';
+
 // format that the api returns data in
 export interface IApiData {
     name: string;
@@ -262,9 +264,14 @@ export const queries: IQueryObject = {
  * embed message interface for discord
  */
 export interface IDiscordEmbed {
-    title: string;
+    author: {
+        name: string;
+        url: string;
+        icon_url: string;
+    };
+    title?: string;
     description: string;
-    url: string;
+    url?: string;
     color: number;
     timestamp?: string;
     thumbnail?: {
@@ -283,6 +290,14 @@ export interface IDiscordEmbed {
 export interface IDiscordStartMessage {
     content?: string;
     embed: IDiscordEmbed;
+}
+
+export interface IEmbeds {
+    embeds: IDiscordEmbed[];
+}
+
+export interface IDiscordWebhookManager {
+    [key: string]: Discord.Webhook;
 }
 
 export const helpMessage: string = `\nThank you for using the Steem Apps Bot! Command prefixes are \
