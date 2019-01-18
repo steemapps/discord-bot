@@ -12,7 +12,7 @@ const client = new Discord.Client();
 
 const uri = 'https://steemapps.com/api/apps';
 const avatarURL = "https://steemitimages.com/u/steemitdev/avatar";
-let webhookManager: IDiscordWebhookManager;
+const webhookManager: IDiscordWebhookManager = {};
 
 import * as config from '../config';
 
@@ -159,8 +159,6 @@ function formatEmbed(app: IApiData): IDiscordEmbed {
         const acclogo = app.accounts.filter((x) => (x.logo && x.name));
         if (acclogo[0] && Array.isArray(acclogo)) {
             // get the image link from account name steemjs? seems like a lot for pictures
-            console.log(acclogo);
-            console.log("https://steemitimages.com/u/" + acclogo[0].name + "/avatar");
             msg.author.icon_url += "https://steemitimages.com/u/" + acclogo[0].name + "/avatar";
         }
     }
@@ -189,7 +187,8 @@ function formatMessages(apps: IApiData[], qs: string[][]): IEmbeds {
 
 async function sendResponse(apps: IApiData[], qs: string[][], channel: Discord.TextChannel) {
     // format all apps into the embedded messages
-    const msgs = formatMessages(apps, qs);
+    const msgs = await formatMessages(apps, qs);
+    const wbkey = channel.guild.name + "-" + channel.name;
 
     // send the content of message, with the sort options being used
     // channel.send(getSort(qs));
@@ -203,13 +202,23 @@ async function sendResponse(apps: IApiData[], qs: string[][], channel: Discord.T
             });
     } */
 
-    if (webhookManager.hasOwnProperty(channel.name)) {
-        webhookManager[channel.name].send(getSort(qs), msgs);
+    if (webhookManager.hasOwnProperty(wbkey)) {
+        console.log(msgs.embeds.length);
+        webhookManager[wbkey].send(getSort(qs), msgs);
     } else {
-        const wbname = channel.name + "SteemAppsWebhook";
-        webhookManager[channel.name] = await channel.createWebhook(wbname, avatarURL)
-          .then((webhook) => webhook.edit(wbname, avatarURL));
-        webhookManager[channel.name].send(getSort(qs), msgs);
+        const wbname = "SteemApps";
+        const newwb = await channel.createWebhook(wbname, avatarURL)
+            .then((webhook) => webhook.edit(wbname, avatarURL))
+            .catch((error) => console.log(error));
+        if (newwb) {
+            webhookManager[wbkey] = newwb;
+            console.log("Created webhook for " + wbkey);
+            console.log(msgs.embeds.length);
+            webhookManager[wbkey].send(getSort(qs), msgs);
+        } else {
+            channel.send("Unable to create webhook.");
+        }
+            
     }
     
 }
@@ -236,7 +245,7 @@ client.on('message', async (msg: Discord.Message) => {
         const channel = msg.channel;
         const command = args.shift();
 
-        if (command === "createHook") {
+        /* if (command === "createHook") {
             const wbname = msg.channel.name + "SteemAppsWebhook";
             msg.channel.createWebhook(wbname, "https://steemitimages.com/u/steemitdev/avatar")
               .then((webhook) => webhook.edit(wbname, "https://steemitimages.com/u/steemitdev/avatar"))
@@ -253,7 +262,7 @@ client.on('message', async (msg: Discord.Message) => {
                     },
                 ],
                 }));
-        }
+        } */
 
         if (command === "help") {
             msg.channel.send(helpMessage);
