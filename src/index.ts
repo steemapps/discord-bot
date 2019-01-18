@@ -1,4 +1,5 @@
 import * as Discord from 'discord.js';
+import fs = require('fs');
 import rp = require('request-promise-native');
 import { 
     argTypes, 
@@ -8,11 +9,13 @@ import {
     IDiscordWebhookManager,
     IEmbeds,
     queries } from './defs';
+
 const client = new Discord.Client();
 
 const uri = 'https://steemapps.com/api/apps';
 const avatarURL = "https://steemitimages.com/u/steemitdev/avatar";
-const webhookManager: IDiscordWebhookManager = {};
+let webhookManager: IDiscordWebhookManager = {};
+const webhookFile = 'webhooks.json';
 
 import * as config from '../config';
 
@@ -291,6 +294,19 @@ client.on('message', async (msg: Discord.Message) => {
             console.log(error);
         });
     }
+});
+
+if (fs.existsSync(webhookFile)) {
+    webhookManager = JSON.parse(fs.readFileSync(webhookFile, 'utf8'));
+} else {
+    const writeData = JSON.stringify(webhookManager);
+    fs.writeFileSync(webhookFile, writeData);
+}
+
+process.on('SIGINT', () => {
+    const writeData = JSON.stringify(webhookManager);
+    fs.writeFileSync(webhookFile, writeData);
+    process.exit();
 });
 
 client.login(config.token);
