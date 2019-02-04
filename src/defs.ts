@@ -260,11 +260,17 @@ export const queries: IQueryObject = {
     ],
 };
 
+export interface IDiscordEmbedField {
+    name: string;
+    value: string;
+    inline?: boolean;
+}
+
 /**
  * embed message interface for discord
  */
 export interface IDiscordEmbed {
-    author: {
+    author?: {
         name: string;
         url: string;
         icon_url: string;
@@ -277,11 +283,7 @@ export interface IDiscordEmbed {
     thumbnail?: {
         url: string;
     };
-    fields?: Array<{
-        name: string;
-        value: string;
-        inline: boolean;
-    }>;
+    fields?: IDiscordEmbedField[];
 }
 
 /**

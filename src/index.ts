@@ -6,9 +6,12 @@ import {
     helpMessage, 
     IApiData, 
     IDiscordEmbed,
+    IDiscordEmbedField,
+    IDiscordStartMessage,
     IDiscordWebhookManager,
     IEmbeds,
-    queries } from './defs';
+    queries,
+    } from './defs';
 
 const client = new Discord.Client();
 
@@ -170,6 +173,25 @@ function formatEmbed(app: IApiData): IDiscordEmbed {
 }
 
 /**
+ * formatEmbedField takes an app and the time parameter and returns an embed field for that app
+ * @param app the app to format a field for
+ * @param time the time parameter passed by user or default time param
+ */
+function formatEmbedField(app: IApiData, time: string): IDiscordEmbedField {
+    const field: IDiscordEmbedField = {
+        name: app.display_name,
+        value: '',
+    };
+
+    field.value += app.dau[time].toFixed(0) + " Users | ";
+    field.value += app.tx[time].toFixed(0) + " Transactions | ";
+    field.value += app.volume.steem[time].toFixed(0) + " STEEM Volume | ";
+    field.value += '[Link](' + app.link + ')';
+
+    return field;
+}
+
+/**
  * formatMessages takes an api response and the queries used to format embedded discord messages
  * @param apps array of app data from steemapps api
  * @param qs queries sent by user or default if not
@@ -177,7 +199,7 @@ function formatEmbed(app: IApiData): IDiscordEmbed {
 function formatMessages(apps: IApiData[], qs: string[][]): IEmbeds {
     const embeds: IDiscordEmbed[] = [];
 
-    for (const app of apps) {
+    for (const app of apps.slice(0, 10)) {
         embeds.push(formatEmbed(app));
     }
 
@@ -188,22 +210,37 @@ function formatMessages(apps: IApiData[], qs: string[][]): IEmbeds {
     return embedArr;
 }
 
+/**
+ * formatMessageFields takes the apps from the api and the user queries and returns a full message
+ * using discord's embed fields
+ * @param apps an array of the apps returned by the api
+ * @param qs the user and/or default queries
+ */
+function formatMessageFields(apps: IApiData[], qs: string[][]): IDiscordStartMessage {
+    const msg: IDiscordStartMessage = {
+        content: "Live data directly from SteemApps.com. \n\nFor more options type: `$steemapps`",
+        embed: {
+            color: 0,
+            description: getSort(qs),
+            fields: [],
+            title: 'Top 10 Steem Apps',
+            url: 'https://discordapp.com', 
+        },
+    };
+
+    for (const app of apps.slice(0, 10)) {
+        msg.embed.fields.push(formatEmbedField(app, qs[qs.length - 2][2]));
+    }
+
+    return msg;
+}
+
 async function sendResponse(apps: IApiData[], qs: string[][], channel: Discord.TextChannel) {
     // format all apps into the embedded messages
     const msgs = await formatMessages(apps, qs);
     const wbkey = channel.guild.name + "-" + channel.name;
 
     // send the content of message, with the sort options being used
-    // channel.send(getSort(qs));
-
-    // loop through and send messages
-    /* for (const msg of msgs) {
-        channel.send(msg)
-            .catch((error) => {
-                console.log(error);
-                console.log(msg);
-            });
-    } */
 
     if (webhookManager.hasOwnProperty(wbkey)) {
         console.log(msgs.embeds.length);
@@ -213,8 +250,10 @@ async function sendResponse(apps: IApiData[], qs: string[][], channel: Discord.T
         const newwb = await channel.createWebhook(wbname, avatarURL)
             .then((webhook) => webhook.edit(wbname, avatarURL))
             .catch((error) => console.log(error));
+            
         if (newwb) {
             webhookManager[wbkey] = newwb;
+            console.log(newwb.id + " " + newwb.token);
             console.log("Created webhook for " + wbkey);
             console.log(msgs.embeds.length);
             webhookManager[wbkey].send(getSort(qs), msgs);
@@ -248,25 +287,6 @@ client.on('message', async (msg: Discord.Message) => {
         const channel = msg.channel;
         const command = args.shift();
 
-        /* if (command === "createHook") {
-            const wbname = msg.channel.name + "SteemAppsWebhook";
-            msg.channel.createWebhook(wbname, "https://steemitimages.com/u/steemitdev/avatar")
-              .then((webhook) => webhook.edit(wbname, "https://steemitimages.com/u/steemitdev/avatar"))
-                .then((wb) => wb.send("Testing dis shit", {
-                    embeds: [{
-                        author: {
-                            name: "Embed 1",
-                        },
-                    },
-                    {
-                        author: {
-                            name: "Embed 2",
-                        },
-                    },
-                ],
-                }));
-        } */
-
         if (command === "help") {
             msg.channel.send(helpMessage);
         }
@@ -286,9 +306,10 @@ client.on('message', async (msg: Discord.Message) => {
         // call the request with uri and path, then format message to send back
         rp(uri + path, options)
         .then((apps) => {
-            console.log(apps.apps.length);
             // pass the array of IApiData, queries, and the msg (for the channel) to main function
-            sendResponse(apps.apps, q, channel);
+            // sendResponse(apps.apps, q, channel);
+            const returnmsg = formatMessageFields(apps.apps, q);
+            channel.send(returnmsg).catch((error) => console.log(error));
         })
         .catch((error) => {
             console.log(error);
@@ -304,6 +325,7 @@ if (fs.existsSync(webhookFile)) {
 }
 
 process.on('SIGINT', () => {
+    console.log(webhookManager);
     const writeData = JSON.stringify(webhookManager);
     fs.writeFileSync(webhookFile, writeData);
     process.exit();
