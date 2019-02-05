@@ -52,13 +52,9 @@ function getPath(qs: string[][]): string {
 
 // returns top of message with the sort time and order
 function getSort(qs: string[][]): string {
-    let sortmsg = "Top Steem ";
+    const sortmsg = "Sorted by " + qs[qs.length - 2][1] + " " + qs[qs.length - 3][1] + " " + qs[qs.length - 1][1];
 
-    for (const q of qs) {
-        sortmsg += q[1] + " ";
-    }
-
-    return sortmsg + "\n";
+    return sortmsg;
 }
 
 // parses command arguments and returns query array
@@ -179,13 +175,13 @@ function formatEmbed(app: IApiData): IDiscordEmbed {
  */
 function formatEmbedField(app: IApiData, time: string): IDiscordEmbedField {
     const field: IDiscordEmbedField = {
-        name: app.display_name,
+        name: app.rank[time] + ". " + app.display_name,
         value: '',
     };
 
-    field.value += app.dau[time].toFixed(0) + " Users | ";
-    field.value += app.tx[time].toFixed(0) + " Transactions | ";
-    field.value += app.volume.steem[time].toFixed(0) + " STEEM Volume | ";
+    field.value += app.dau[time].toLocaleString('en') + " Users | ";
+    field.value += app.tx[time].toLocaleString('en') + " Transactions | ";
+    field.value += app.volume.steem[time].toLocaleString('en') + " STEEM Volume | ";
     field.value += '[Link](' + app.link + ')';
 
     return field;
@@ -216,9 +212,8 @@ function formatMessages(apps: IApiData[], qs: string[][]): IEmbeds {
  * @param apps an array of the apps returned by the api
  * @param qs the user and/or default queries
  */
-function formatMessageFields(apps: IApiData[], qs: string[][]): IDiscordStartMessage {
+function formatMessageFields(apps: IApiData[], qs: string[][]): Discord.RichEmbed {
     const msg: IDiscordStartMessage = {
-        content: "Live data directly from SteemApps.com. \n\nFor more options type: `$steemapps`",
         embed: {
             color: 0,
             description: getSort(qs),
@@ -228,11 +223,13 @@ function formatMessageFields(apps: IApiData[], qs: string[][]): IDiscordStartMes
         },
     };
 
+    const embed = new Discord.RichEmbed(msg.embed);
+
     for (const app of apps.slice(0, 10)) {
-        msg.embed.fields.push(formatEmbedField(app, qs[qs.length - 2][2]));
+        embed.fields.push(formatEmbedField(app, qs[qs.length - 2][2]));
     }
 
-    return msg;
+    return embed;
 }
 
 async function sendResponse(apps: IApiData[], qs: string[][], channel: Discord.TextChannel) {
@@ -287,7 +284,7 @@ client.on('message', async (msg: Discord.Message) => {
         const channel = msg.channel;
         const command = args.shift();
 
-        if (command === "help") {
+        if (command === "steemapps") {
             msg.channel.send(helpMessage);
         }
         
@@ -309,7 +306,8 @@ client.on('message', async (msg: Discord.Message) => {
             // pass the array of IApiData, queries, and the msg (for the channel) to main function
             // sendResponse(apps.apps, q, channel);
             const returnmsg = formatMessageFields(apps.apps, q);
-            channel.send(returnmsg).catch((error) => console.log(error));
+            channel.send("Live data directly from SteemApps.com. For more options type: `$steemapps`", 
+                        returnmsg).catch((error) => console.log(error));
         })
         .catch((error) => {
             console.log(error);

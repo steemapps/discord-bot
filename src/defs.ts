@@ -135,7 +135,7 @@ export const queries: IQueryObject = {
     ],
     dau: [
         "sort=dau",
-        "By Daily Active Users",
+        "Active Users",
         "dau",
     ],
     desc: [
@@ -184,17 +184,17 @@ export const queries: IQueryObject = {
     ],
     last_day: [
         "time=last_day",
-        "Today",
+        "Daily",
         "last_day",
     ],
     last_month: [
         "time=last_month",
-        "This Month",
+        "Monthly",
         "last_month",
     ],
     last_week: [
         "time=last_week",
-        "This Week",
+        "Weekly",
         "last_week",
     ],
     media: [
@@ -211,17 +211,17 @@ export const queries: IQueryObject = {
     ],
     rank: [
         "sort=rank",
-        "By Ranking",
+        "Ranking",
     ],
     rewards_sbd: [
         "sort=rewards_sbd",
-        "By SBD Rewards",
+        "SBD Rewards",
         "rewards",
         "sbd",
     ],
     rewards_steem: [
         "sort=rewards_steem",
-        "By STEEM Rewards",
+        "STEEM Rewards",
         "rewards",
         "steem",
     ],
@@ -235,7 +235,7 @@ export const queries: IQueryObject = {
     ],
     tx: [
         "sort=tx",
-        "By Transactions",
+        "Transactions",
         "tx",
     ],
     utility: [
@@ -244,13 +244,13 @@ export const queries: IQueryObject = {
     ],
     volume_sbd: [
         "sort=volume_sbd",
-        "By SBD Volume",
+        "SBD Volume",
         "volume",
         "sbd",
     ],
     volume_steem: [
         "sort=volume_steem",
-        "By STEEM Volume",
+        "STEEM Volume",
         "volume",
         "steem",
     ],
@@ -279,11 +279,13 @@ export interface IDiscordEmbed {
     description: string;
     url?: string;
     color: number;
-    timestamp?: string;
+    timestamp?: Date;
     thumbnail?: {
         url: string;
     };
     fields?: IDiscordEmbedField[];
+    addField?: () => void;
+
 }
 
 /**
