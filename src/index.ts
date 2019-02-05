@@ -306,7 +306,7 @@ client.on('message', async (msg: Discord.Message) => {
             // pass the array of IApiData, queries, and the msg (for the channel) to main function
             // sendResponse(apps.apps, q, channel);
             const returnmsg = formatMessageFields(apps.apps, q);
-            channel.send("Live data directly from SteemApps.com. For more options type: `$steemapps`", 
+            channel.send("Live data directly from SteemApps.com.\n\nFor more options type: `$steemapps`", 
                         returnmsg).catch((error) => console.log(error));
         })
         .catch((error) => {
