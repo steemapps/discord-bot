@@ -296,14 +296,6 @@ export interface IDiscordStartMessage {
     embed: IDiscordEmbed;
 }
 
-export interface IEmbeds {
-    embeds: IDiscordEmbed[];
-}
-
-export interface IDiscordWebhookManager {
-    [key: string]: Discord.Webhook;
-}
-
 export const helpMessage: string = `\nThank you for using the Steem Apps Bot! Command prefixes are \
 ! and $. Commands are help (which shows this message), and top, which shows the top Steem Apps Ranked. \
 The parameters you can pass to top are:\nTime: last_day, last_week, or last_month.\nSort: desc or \

@@ -5,20 +5,14 @@ import {
     argTypes, 
     helpMessage, 
     IApiData, 
-    IDiscordEmbed,
     IDiscordEmbedField,
     IDiscordStartMessage,
-    IDiscordWebhookManager,
-    IEmbeds,
     queries,
     } from './defs';
 
 const client = new Discord.Client();
 
 const uri = 'https://steemapps.com/api/apps';
-const avatarURL = "https://steemitimages.com/u/steemitdev/avatar";
-let webhookManager: IDiscordWebhookManager = {};
-const webhookFile = 'webhooks.json';
 
 import * as config from '../config';
 
@@ -104,70 +98,6 @@ function parseArgs(args: string[]): string[][] {
     return qs;
 }
 
-function formatMessage(apps: IApiData[], qs: string[][]): string {
-    let msg = "";
-    // fixed by arg parse, order doesn't matter
-    // require certain parameter order to keep formatting nice looking 
-    const time = qs[qs.length - 2][2] as keyof IApiData["rank"];
-    const sort = qs[qs.length - 3];
-
-    // loop through each result from api
-    for (const app of apps) {
-        // print app rank and name (remove rank for non-rank sort?)
-        msg += app.rank[time] + ". " + app.display_name;
-        const data = app[sort[2] as keyof IApiData];
-        // get data here to reduce array indexing and easier typing
-
-        // due to arg parse func and typing, at this point there should not be any type errors.
-        // casts are for the ability to index into object with a string
-        if (sort[0] !== "sort=rank") {
-            // if not rank, print the sort parameter
-            if (sort[2] === "tx" || sort[2] === "dau") {
-                // if tx or dau sort, print the time period of the rank parameter
-                msg += " " + capitalize(sort[2]) + ": " + (data as IApiData["tx"])[time];
-            } else {
-                // for other sorts, print the correct currency type as well as correct time period
-                msg += " " + capitalize(sort[2]) + " (" + sort[3].toUpperCase() + "): ";
-                msg += ((data as IApiData["volume"])[sort[3] as keyof IApiData["volume"]][time]).toFixed(3);
-            }
-        }
-
-        msg += "\n";
-    }
-
-    return msg;
-}
-
-/**
- * Formats a discord embed with app description, name, link, pic, etc.
- * @param app 
- */
-function formatEmbed(app: IApiData): IDiscordEmbed {
-    const msg: IDiscordEmbed = {
-        author: {
-            icon_url: '',
-            name: app.display_name,
-            url: app.link,
-        },
-        color: 12607945,
-        description: app.short_description,  
-    };
-
-    // if image data is in steemapps db, use it
-    if (app.image && app.image.length > 0) {
-        msg.author.icon_url += app.image;
-    } else {
-        // else find the account with a logo on it
-        const acclogo = app.accounts.filter((x) => (x.logo && x.name));
-        if (acclogo[0] && Array.isArray(acclogo)) {
-            // get the image link from account name steemjs? seems like a lot for pictures
-            msg.author.icon_url += "https://steemitimages.com/u/" + acclogo[0].name + "/avatar";
-        }
-    }
-
-    return msg;
-}
-
 /**
  * formatEmbedField takes an app and the time parameter and returns an embed field for that app
  * @param app the app to format a field for
@@ -179,31 +109,13 @@ function formatEmbedField(app: IApiData, time: string): IDiscordEmbedField {
         value: '',
     };
 
+    // add each of the values for time period to app string
     field.value += app.dau[time].toLocaleString('en') + " Users | ";
     field.value += app.tx[time].toLocaleString('en') + " Transactions | ";
     field.value += app.volume.steem[time].toLocaleString('en') + " STEEM Volume | ";
     field.value += '[Link](' + app.link + ')';
 
     return field;
-}
-
-/**
- * formatMessages takes an api response and the queries used to format embedded discord messages
- * @param apps array of app data from steemapps api
- * @param qs queries sent by user or default if not
- */
-function formatMessages(apps: IApiData[], qs: string[][]): IEmbeds {
-    const embeds: IDiscordEmbed[] = [];
-
-    for (const app of apps.slice(0, 10)) {
-        embeds.push(formatEmbed(app));
-    }
-
-    const embedArr: IEmbeds = {
-        embeds,
-    };
-
-    return embedArr;
 }
 
 /**
@@ -225,6 +137,8 @@ function formatMessageFields(apps: IApiData[], qs: string[][]): Discord.RichEmbe
 
     const embed = new Discord.RichEmbed(msg.embed);
 
+    // for top 10 apps, format the embed field
+
     for (const app of apps.slice(0, 10)) {
         embed.fields.push(formatEmbedField(app, qs[qs.length - 2][2]));
     }
@@ -232,41 +146,12 @@ function formatMessageFields(apps: IApiData[], qs: string[][]): Discord.RichEmbe
     return embed;
 }
 
-async function sendResponse(apps: IApiData[], qs: string[][], channel: Discord.TextChannel) {
-    // format all apps into the embedded messages
-    const msgs = await formatMessages(apps, qs);
-    const wbkey = channel.guild.name + "-" + channel.name;
-
-    // send the content of message, with the sort options being used
-
-    if (webhookManager.hasOwnProperty(wbkey)) {
-        console.log(msgs.embeds.length);
-        webhookManager[wbkey].send(getSort(qs), msgs);
-    } else {
-        const wbname = "SteemApps";
-        const newwb = await channel.createWebhook(wbname, avatarURL)
-            .then((webhook) => webhook.edit(wbname, avatarURL))
-            .catch((error) => console.log(error));
-            
-        if (newwb) {
-            webhookManager[wbkey] = newwb;
-            console.log(newwb.id + " " + newwb.token);
-            console.log("Created webhook for " + wbkey);
-            console.log(msgs.embeds.length);
-            webhookManager[wbkey].send(getSort(qs), msgs);
-        } else {
-            channel.send("Unable to create webhook.");
-        }
-            
-    }
-    
-}
-
 // print out in console when logged in
 client.on('ready', () => {
     console.log("Logged in to Discord.");
 });
 
+// main logic - check message for ! or $, if valid command, return ranking / helpmessage
 client.on('message', async (msg: Discord.Message) => {
     // don't respond to bots
     if (msg.author.bot) {
@@ -313,20 +198,6 @@ client.on('message', async (msg: Discord.Message) => {
             console.log(error);
         });
     }
-});
-
-if (fs.existsSync(webhookFile)) {
-    webhookManager = JSON.parse(fs.readFileSync(webhookFile, 'utf8'));
-} else {
-    const writeData = JSON.stringify(webhookManager);
-    fs.writeFileSync(webhookFile, writeData);
-}
-
-process.on('SIGINT', () => {
-    console.log(webhookManager);
-    const writeData = JSON.stringify(webhookManager);
-    fs.writeFileSync(webhookFile, writeData);
-    process.exit();
 });
 
 client.login(config.token);
