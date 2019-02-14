@@ -16,12 +16,6 @@ const uri = 'https://steemapps.com/api/apps';
 
 import * as config from '../config';
 
-// ToDo:
-// Add n limit (e.g. only show top 10 [could do this in the loop but should be api available?])
-// Add categories once available through API
-// Add app type once available through API
-// Remove rank from non-rank sorts?
-
 const options: rp.RequestPromiseOptions = {
     headers: {
         'Content-Type': 'application/json',
@@ -52,6 +46,7 @@ function getSort(qs: string[][]): string {
 }
 
 // parses command arguments and returns query array
+// returned query array always has at least length 3
 function parseArgs(args: string[]): string[][] {
     const qs: string[][] = [];
 
@@ -65,7 +60,7 @@ function parseArgs(args: string[]): string[][] {
 
     // decrease type when API endpoints become available for type and category
     let type = 0;
-    while (type < 5) {
+    while (type < config.argMax) {
         let parsed = false;
         
         // iterate through args, checking against each division of the api
@@ -83,9 +78,12 @@ function parseArgs(args: string[]): string[][] {
         }
 
         // if arg is not parsed in a parameter type, push the default for that type into query
-        if (type > 1 && !parsed) {
-            // console.log(type);
-            if (type === 4 && qs[qs.length - 2] === queries.rank) {
+        // app type and app category num have defaults in api, so not added to params
+        if (type > config.appCategoryNum && !parsed) {
+            // if type is at sort order, check if sort type is rank
+            // if so, default is ascending
+            // otherwise, default is descending
+            if (type === config.sortOrderNum && qs[qs.length - 2] === queries.rank) {
                 qs.push(queries[argTypes[type].asc]);
             } else {
                 qs.push(queries[argTypes[type].default]);
@@ -127,7 +125,7 @@ function formatEmbedField(app: IApiData, time: string): IDiscordEmbedField {
 function formatMessageFields(apps: IApiData[], qs: string[][]): Discord.RichEmbed {
     const msg: IDiscordStartMessage = {
         embed: {
-            color: 0,
+            color: config.embedColor,
             description: getSort(qs),
             fields: [],
             title: 'Top 10 Steem Apps',
@@ -155,6 +153,11 @@ client.on('ready', () => {
 client.on('message', async (msg: Discord.Message) => {
     // don't respond to bots
     if (msg.author.bot) {
+        return;
+    }
+
+    // if msg.content is null, return
+    if (!msg.content) {
         return;
     }
 
