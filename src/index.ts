@@ -1,17 +1,20 @@
 import * as Discord from 'discord.js';
+import fs = require('fs');
 import rp = require('request-promise-native');
-import { argTypes, helpMessage, IApiData, IDiscordEmbed, IDiscordStartMessage, queries } from './defs';
+import { 
+    argTypes, 
+    helpMessage, 
+    IApiData, 
+    IDiscordEmbedField,
+    IDiscordStartMessage,
+    queries,
+    } from './defs';
+
 const client = new Discord.Client();
 
 const uri = 'https://steemapps.com/api/apps';
 
 import * as config from '../config';
-
-// ToDo:
-// Add n limit (e.g. only show top 10 [could do this in the loop but should be api available?])
-// Add categories once available through API
-// Add app type once available through API
-// Remove rank from non-rank sorts?
 
 const options: rp.RequestPromiseOptions = {
     headers: {
@@ -37,16 +40,13 @@ function getPath(qs: string[][]): string {
 
 // returns top of message with the sort time and order
 function getSort(qs: string[][]): string {
-    let sortmsg = "Top Steem ";
+    const sortmsg = "Sorted by " + qs[qs.length - 2][1] + " " + qs[qs.length - 3][1] + " " + qs[qs.length - 1][1];
 
-    for (const q of qs) {
-        sortmsg += q[1] + " ";
-    }
-
-    return sortmsg + "\n";
+    return sortmsg;
 }
 
 // parses command arguments and returns query array
+// returned query array always has at least length 3
 function parseArgs(args: string[]): string[][] {
     const qs: string[][] = [];
 
@@ -60,7 +60,7 @@ function parseArgs(args: string[]): string[][] {
 
     // decrease type when API endpoints become available for type and category
     let type = 0;
-    while (type < 5) {
+    while (type < config.argMax) {
         let parsed = false;
         
         // iterate through args, checking against each division of the api
@@ -78,9 +78,12 @@ function parseArgs(args: string[]): string[][] {
         }
 
         // if arg is not parsed in a parameter type, push the default for that type into query
-        if (type > 1 && !parsed) {
-            // console.log(type);
-            if (type === 4 && qs[qs.length - 2] === queries.rank) {
+        // app type and app category num have defaults in api, so not added to params
+        if (type > config.appCategoryNum && !parsed) {
+            // if type is at sort order, check if sort type is rank
+            // if so, default is ascending
+            // otherwise, default is descending
+            if (type === config.sortOrderNum && qs[qs.length - 2] === queries.rank) {
                 qs.push(queries[argTypes[type].asc]);
             } else {
                 qs.push(queries[argTypes[type].default]);
@@ -93,107 +96,52 @@ function parseArgs(args: string[]): string[][] {
     return qs;
 }
 
-function formatMessage(apps: IApiData[], qs: string[][]): string {
-    let msg = "";
-    // fixed by arg parse, order doesn't matter
-    // require certain parameter order to keep formatting nice looking 
-    const time = qs[qs.length - 2][2] as keyof IApiData["rank"];
-    const sort = qs[qs.length - 3];
-
-    // loop through each result from api
-    for (const app of apps) {
-        // print app rank and name (remove rank for non-rank sort?)
-        msg += app.rank[time] + ". " + app.display_name;
-        const data = app[sort[2] as keyof IApiData];
-        // get data here to reduce array indexing and easier typing
-
-        // due to arg parse func and typing, at this point there should not be any type errors.
-        // casts are for the ability to index into object with a string
-        if (sort[0] !== "sort=rank") {
-            // if not rank, print the sort parameter
-            if (sort[2] === "tx" || sort[2] === "dau") {
-                // if tx or dau sort, print the time period of the rank parameter
-                msg += " " + capitalize(sort[2]) + ": " + (data as IApiData["tx"])[time];
-            } else {
-                // for other sorts, print the correct currency type as well as correct time period
-                msg += " " + capitalize(sort[2]) + " (" + sort[3].toUpperCase() + "): ";
-                msg += ((data as IApiData["volume"])[sort[3] as keyof IApiData["volume"]][time]).toFixed(3);
-            }
-        }
-
-        msg += "\n";
-    }
-
-    return msg;
-}
-
 /**
- * Formats a discord embed with app description, name, link, pic, etc.
- * @param app 
+ * formatEmbedField takes an app and the time parameter and returns an embed field for that app
+ * @param app the app to format a field for
+ * @param time the time parameter passed by user or default time param
  */
-function formatEmbed(app: IApiData): IDiscordEmbed {
-    const msg: IDiscordEmbed = {
-        color: 12607945,
-        description: app.short_description,  
-        thumbnail: {
-            url: '',
-        }, 
-        title: app.display_name,
-        url: app.link,
+function formatEmbedField(app: IApiData, time: string): IDiscordEmbedField {
+    const field: IDiscordEmbedField = {
+        name: app.rank[time] + ". " + app.display_name,
+        value: '',
     };
 
-    // if image data is in steemapps db, use it
-    if (app.image && app.image.length > 0) {
-        msg.thumbnail.url += app.image;
-    } else {
-        // else find the account with a logo on it
-        const acclogo = app.accounts.filter((x) => (x.logo && x.name));
-        if (acclogo[0] && Array.isArray(acclogo)) {
-            // get the image link from account name steemjs? seems like a lot for pictures
-            console.log(acclogo);
-            console.log("https://steemitimages.com/u/" + acclogo[0].name + "/avatar");
-            msg.thumbnail.url += "https://steemitimages.com/u/" + acclogo[0].name + "/avatar";
-        }
-    }
+    // add each of the values for time period to app string
+    field.value += app.dau[time].toLocaleString('en') + " Users | ";
+    field.value += app.tx[time].toLocaleString('en') + " Transactions | ";
+    field.value += app.volume.steem[time].toLocaleString('en') + " STEEM Volume | ";
+    field.value += '[Link](' + app.link + ')';
 
-    return msg;
+    return field;
 }
 
 /**
- * formatMessages takes an api response and the queries used to format embedded discord messages
- * @param apps array of app data from steemapps api
- * @param qs queries sent by user or default if not
+ * formatMessageFields takes the apps from the api and the user queries and returns a full message
+ * using discord's embed fields
+ * @param apps an array of the apps returned by the api
+ * @param qs the user and/or default queries
  */
-function formatMessages(apps: IApiData[], qs: string[][]): IDiscordStartMessage[] {
-    const messages: IDiscordStartMessage[] = [];
+function formatMessageFields(apps: IApiData[], qs: string[][]): Discord.RichEmbed {
+    const msg: IDiscordStartMessage = {
+        embed: {
+            color: config.embedColor,
+            description: getSort(qs),
+            fields: [],
+            title: 'Top 10 Steem Apps',
+            url: 'https://discordapp.com', 
+        },
+    };
 
-    for (const app of apps) {
-        const msg: IDiscordStartMessage = {
-            embed: formatEmbed(app),
-        };
-        
-        messages.push(msg);
+    const embed = new Discord.RichEmbed(msg.embed);
+
+    // for top 10 apps, format the embed field
+
+    for (const app of apps.slice(0, 10)) {
+        embed.fields.push(formatEmbedField(app, qs[qs.length - 2][2]));
     }
 
-    return messages;
-}
-
-function sendResponse(apps: IApiData[], qs: string[][], dismsg: Discord.Message) {
-    // format all apps into the embedded messages
-    const msgs = formatMessages(apps, qs);
-    const channel = dismsg.channel;
-
-    // send the content of message, with the sort options being used
-    channel.send(getSort(qs));
-
-    // loop through and send messages
-    for (const msg of msgs) {
-        channel.send(msg)
-            .catch((error) => {
-                console.log(error);
-                console.log(msg);
-            });
-    }
+    return embed;
 }
 
 // print out in console when logged in
@@ -201,9 +149,15 @@ client.on('ready', () => {
     console.log("Logged in to Discord.");
 });
 
+// main logic - check message for ! or $, if valid command, return ranking / helpmessage
 client.on('message', async (msg: Discord.Message) => {
     // don't respond to bots
     if (msg.author.bot) {
+        return;
+    }
+
+    // if msg.content is null, return
+    if (!msg.content) {
         return;
     }
 
@@ -214,10 +168,11 @@ client.on('message', async (msg: Discord.Message) => {
 
     // split message by spaces, removing the command prefix
     const args = msg.content.slice(1).trim().split(/ +/g);
-    if (args && Array.isArray(args)) {
+    if (args && Array.isArray(args) && msg.channel instanceof Discord.TextChannel) {
+        const channel = msg.channel;
         const command = args.shift();
 
-        if (command === "help") {
+        if (command === "steemapps") {
             msg.channel.send(helpMessage);
         }
         
@@ -236,9 +191,11 @@ client.on('message', async (msg: Discord.Message) => {
         // call the request with uri and path, then format message to send back
         rp(uri + path, options)
         .then((apps) => {
-            console.log(apps.apps.length);
             // pass the array of IApiData, queries, and the msg (for the channel) to main function
-            sendResponse(apps.apps, q, msg);
+            // sendResponse(apps.apps, q, channel);
+            const returnmsg = formatMessageFields(apps.apps, q);
+            channel.send("Live data directly from SteemApps.com.\n\nFor more options type: `$steemapps`", 
+                        returnmsg).catch((error) => console.log(error));
         })
         .catch((error) => {
             console.log(error);
